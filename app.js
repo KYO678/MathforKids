@@ -2,6 +2,7 @@ const { useState, useEffect } = React;
 const { motion } = framerMotion;
 
 const AdditionAnimation = () => {
+  const [operation, setOperation] = useState('add');
   const [firstNumber, setFirstNumber] = useState(10);
   const [secondNumber, setSecondNumber] = useState(12);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -14,7 +15,16 @@ const AdditionAnimation = () => {
   const handleNumberChange = (setter) => (e) => {
     const value = parseInt(e.target.value);
     if (!isNaN(value) && value >= 0 && value <= 30) {
-      setter(value);
+      if (operation === 'subtract') {
+        if (setter === setSecondNumber) {
+          if (value <= firstNumber) setter(value);
+        } else if (setter === setFirstNumber) {
+          setter(value);
+          if (value < secondNumber) setSecondNumber(value);
+        }
+      } else {
+        setter(value);
+      }
     } else if (e.target.value === '') {
       setter(0);
     }
@@ -24,47 +34,73 @@ const AdditionAnimation = () => {
   useEffect(() => {
     // 計算後の状態を維持する場合はブロックを更新しない
     if (hasCalculated && !isAnimating) return;
-    
+
     setShowResult(false);
-    
+
     const newBlocks = [];
-    // 最初の数のブロック
-    for (let i = 0; i < firstNumber; i++) {
-      newBlocks.push({
-        id: `first-${i}`,
-        group: 'first',
-        color: '#FF9999', // 赤っぽい色
-        initialX: (i % 10) * 30,
-        initialY: Math.floor(i / 10) * 30,
-        x: (i % 10) * 30,
-        y: Math.floor(i / 10) * 30 + 50,
-      });
+    if (operation === 'add') {
+      // 最初の数のブロック
+      for (let i = 0; i < firstNumber; i++) {
+        newBlocks.push({
+          id: `first-${i}`,
+          group: 'first',
+          color: '#FF9999', // 赤っぽい色
+          initialX: (i % 10) * 30,
+          initialY: Math.floor(i / 10) * 30,
+          x: (i % 10) * 30,
+          y: Math.floor(i / 10) * 30 + 50,
+        });
+      }
+
+      // 2番目の数のブロック
+      for (let i = 0; i < secondNumber; i++) {
+        newBlocks.push({
+          id: `second-${i}`,
+          group: 'second',
+          color: '#99CCFF', // 青っぽい色
+          initialX: (i % 10) * 30,
+          initialY: Math.floor(i / 10) * 30,
+          x: (i % 10) * 30,
+          y: Math.floor(i / 10) * 30 + 150,
+        });
+      }
+    } else {
+      // 引き算のブロック
+      for (let i = 0; i < firstNumber; i++) {
+        newBlocks.push({
+          id: `first-${i}`,
+          group: 'first',
+          color: '#FF9999',
+          initialX: (i % 10) * 30,
+          initialY: Math.floor(i / 10) * 30,
+          x: (i % 10) * 30,
+          y: Math.floor(i / 10) * 30 + 50,
+          toRemove: i >= firstNumber - secondNumber,
+        });
+      }
     }
-    
-    // 2番目の数のブロック
-    for (let i = 0; i < secondNumber; i++) {
-      newBlocks.push({
-        id: `second-${i}`,
-        group: 'second',
-        color: '#99CCFF', // 青っぽい色
-        initialX: (i % 10) * 30,
-        initialY: Math.floor(i / 10) * 30,
-        x: (i % 10) * 30,
-        y: Math.floor(i / 10) * 30 + 150,
-      });
-    }
-    
+
     setBlocks(newBlocks);
-  }, [firstNumber, secondNumber, hasCalculated, isAnimating]);
+  }, [firstNumber, secondNumber, hasCalculated, isAnimating, operation]);
 
   // アニメーションの実行
   const runAnimation = () => {
     setIsAnimating(true);
     setShowResult(false);
     setAnimationCompleted(false);
-    
+
     // タイマーでアニメーション完了を設定
     setTimeout(() => {
+      if (operation === 'subtract') {
+        setBlocks((prev) => {
+          const remain = prev.filter((b) => !b.toRemove);
+          return remain.map((b, i) => ({
+            ...b,
+            x: (i % 10) * 30,
+            y: Math.floor(i / 10) * 30 + 50,
+          }));
+        });
+      }
       setIsAnimating(false);
       setAnimationCompleted(true);
       setHasCalculated(true);
@@ -84,8 +120,7 @@ const AdditionAnimation = () => {
     setAnimationCompleted(false);
   };
 
-  // 合計の計算
-  const sum = firstNumber + secondNumber;
+  const result = operation === 'add' ? firstNumber + secondNumber : firstNumber - secondNumber;
 
   // 数を漢数字に変換する関数
   const toJapaneseNumber = (num) => {
@@ -104,11 +139,22 @@ const AdditionAnimation = () => {
   return (
     <div className="bg-blue-50 p-6 rounded-lg shadow-lg max-w-full">
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold text-blue-600 mb-2">楽しい足し算アニメーション</h1>
-        <p className="text-lg text-gray-700">ブロックを使って足し算をしよう！</p>
+        <h1 className="text-3xl font-bold text-blue-600 mb-2">楽しい計算アニメーション</h1>
+        <p className="text-lg text-gray-700">ブロックを使って計算をしよう！</p>
       </div>
 
       <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-6">
+        <div className="mb-4 md:mb-0 md:mr-4">
+          <select
+            value={operation}
+            onChange={(e) => setOperation(e.target.value)}
+            className="border border-blue-400 rounded-lg p-2 text-lg"
+            disabled={isAnimating}
+          >
+            <option value="add">足し算</option>
+            <option value="subtract">引き算</option>
+          </select>
+        </div>
         <div className="flex items-center">
           <input
             type="number"
@@ -119,7 +165,7 @@ const AdditionAnimation = () => {
             className="w-16 h-16 text-2xl text-center border-2 border-blue-400 rounded-lg"
             disabled={isAnimating}
           />
-          <span className="text-4xl mx-4">+</span>
+          <span className="text-4xl mx-4">{operation === 'add' ? '+' : '-'}</span>
           <input
             type="number"
             value={secondNumber}
@@ -131,7 +177,7 @@ const AdditionAnimation = () => {
           />
           <span className="text-4xl mx-4">=</span>
           <div className="w-16 h-16 flex items-center justify-center text-2xl font-bold bg-yellow-100 border-2 border-yellow-400 rounded-lg">
-            {showResult ? sum : '?'}
+            {showResult ? result : '?'}
           </div>
         </div>
       </div>
@@ -141,11 +187,11 @@ const AdditionAnimation = () => {
           {!isAnimating && !animationCompleted && !showResult && '計算してみよう！'}
           {isAnimating && 'ブロックが動いているよ...'}
           {animationCompleted && !showResult && 'いくつになったかな？「答えを見る」ボタンをおしてね！'}
-          {showResult && `${firstNumber} + ${secondNumber} = ${sum}`}
+          {showResult && `${firstNumber} ${operation === 'add' ? '+' : '-'} ${secondNumber} = ${result}`}
         </div>
         {showResult && (
           <div className="text-2xl font-bold text-purple-600 mt-2">
-            {`${toJapaneseNumber(firstNumber)} + ${toJapaneseNumber(secondNumber)} = ${toJapaneseNumber(sum)}`}
+            {`${toJapaneseNumber(firstNumber)} ${operation === 'add' ? '+' : '-'} ${toJapaneseNumber(secondNumber)} = ${toJapaneseNumber(result)}`}
           </div>
         )}
       </div>
@@ -215,16 +261,23 @@ const AdditionAnimation = () => {
           {blocks.map((block) => (
             <motion.div
               key={block.id}
-              initial={{ x: block.x, y: block.y }}
+              initial={{ x: block.x, y: block.y, opacity: block.toRemove ? 1 : 1 }}
               animate={{
-                x: (isAnimating || hasCalculated) 
-                  ? 150 + (blocks.indexOf(block) % 10) * 30
-                  : block.x,
-                y: (isAnimating || hasCalculated) 
-                  ? 100 + Math.floor(blocks.indexOf(block) / 10) * 30
-                  : block.y,
+                x:
+                  operation === 'add' && (isAnimating || hasCalculated)
+                    ? 150 + (blocks.indexOf(block) % 10) * 30
+                    : block.x,
+                y:
+                  operation === 'add' && (isAnimating || hasCalculated)
+                    ? 100 + Math.floor(blocks.indexOf(block) / 10) * 30
+                    : operation === 'subtract' && block.toRemove && (isAnimating || hasCalculated)
+                    ? block.y + 60
+                    : block.y,
                 scale: isAnimating ? [1, 1.1, 1] : 1,
-                opacity: 1
+                opacity:
+                  operation === 'subtract' && block.toRemove && (isAnimating || hasCalculated)
+                    ? 0
+                    : 1,
               }}
               transition={{ duration: 1, delay: block.group === 'first' ? 0 : 0.5 }}
               style={{
@@ -248,7 +301,7 @@ const AdditionAnimation = () => {
           {showResult && (
             <div className="absolute bottom-4 left-0 right-0 text-center">
               <div className="inline-block bg-yellow-200 px-6 py-2 rounded-full text-xl font-bold text-yellow-800 shadow-md">
-                合計: {sum}
+                {operation === 'add' ? '合計' : '結果'}: {result}
               </div>
             </div>
           )}
@@ -256,7 +309,7 @@ const AdditionAnimation = () => {
       </div>
       
       <div className="text-center mt-6 text-gray-600">
-        <p>数字を変えて、いろいろな足し算をやってみよう！</p>
+        <p>数字を変えて、いろいろな計算をやってみよう！</p>
       </div>
     </div>
   );
